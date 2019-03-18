@@ -1,0 +1,9 @@
+rootProject.name = 'ZipFileWatcher'
+include 'ZipFileWatcher-api'
+include 'ZipFileWatcher-service'
+
+rootProject.children.each { child ->
+  child.buildFileName = "${child.name}.gradle"
+}
+
+enableFeaturePreview("IMPROVED_POM_SUPPORT")
