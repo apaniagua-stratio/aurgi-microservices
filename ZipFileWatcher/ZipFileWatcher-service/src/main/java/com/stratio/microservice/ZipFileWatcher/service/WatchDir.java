@@ -6,10 +6,13 @@ import static java.nio.file.LinkOption.*;
 import java.nio.file.attribute.*;
 import java.io.*;
 import java.util.*;
+import java.util.Date;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.task.TaskExecutor;
@@ -18,15 +21,17 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 
-
+@Slf4j
 public class WatchDir {
 
     private final WatchService watcher;
     private final Map<WatchKey,Path> keys;
     private final boolean recursive;
     private boolean trace = false;
+
     private String[] extensionesAceptadas = {"zip"};
-    private String unzipPath="/home/apaniagua/Documentos/watched/unzipped";
+    private final String unzipPath;
+    private String filesRead ="";
 
     @SuppressWarnings("unchecked")
     static <T> WatchEvent<T> cast(WatchEvent<?> event) {
@@ -71,15 +76,18 @@ public class WatchDir {
     /**
      * Creates a WatchService and registers the given directory
      */
-    WatchDir(Path dir, boolean recursive) throws IOException {
+    WatchDir(Path dir, boolean recursive, String outputDir) throws IOException {
         this.watcher = FileSystems.getDefault().newWatchService();
         this.keys = new HashMap<WatchKey,Path>();
         this.recursive = recursive;
+        this.unzipPath=outputDir;
 
         if (recursive) {
-            System.out.format("Scanning %s ...\n", dir);
+            //System.out.format("Scanning %s ...\n", dir);
+            log.info("FILEWATCHER Scanning %s ...\n", dir);
             registerAll(dir);
-            System.out.println("Done.");
+            //System.out.println("Done.");
+            log.info("FILEWATCHER Scanning. Done.");
         } else {
             register(dir);
         }
@@ -107,7 +115,8 @@ public class WatchDir {
 
             Path dir = keys.get(key);
             if (dir == null) {
-                System.err.println("WatchKey not recognized!!");
+                //System.err.println("WatchKey not recognized!!");
+                log.info("FILEWATCHER WatchKey not recognized!!");
                 continue;
             }
 
@@ -127,30 +136,43 @@ public class WatchDir {
 
 
                 // print out event
-                System.out.format("%s: %s\n", event.kind().name(), child);
+                log.info(event.kind().name() + " " +  child);
+                //System.out.format("%s: %s\n", event.kind().name(), child);
+                Date date = new Date();
 
                 if (kind==ENTRY_CREATE && !Files.isDirectory(child)) {
 
+
+                    filesRead += "{\"Name\":\"" + child.getFileName();
+
                     if (Arrays.stream(extensionesAceptadas).anyMatch(FilenameUtils.getExtension(child.getFileName().toString())::equals)) {
 
-                        System.out.println("New " + extensionesAceptadas.toString() + " File:" + child.getFileName().toString());
-
+                        //System.out.println("New " + extensionesAceptadas[0].toString() + " File:" + child.getFileName().toString());
+                        log.info("ENTRY Discovered new " + extensionesAceptadas[0].toString() + " file:" + child.getFileName().toString());
 
                         try {
 
                             //wait a bit
                             Thread.sleep(5000);
+                            String result=unzip(child.toString(),unzipPath);
 
-                            unzip(child.toString(),unzipPath);
+                            filesRead += "\",\"Status\": \"" + result + "\",\"timestamp\":" + "\"" + date.getTime() + "\"};";
+
                         }
                         catch (IOException e) {
-                            System.out.println(e.getMessage());
+                            filesRead += "\",\"Status\": \"KO\"" + "\",\"timestamp\":" + "\"" + date.getTime() + "\"};";
+                            //System.out.println(e.getMessage());
+                            log.error(e.getMessage());
+                            e.printStackTrace();
 
                         }
 
-                    }
 
-                    //child.getFileName().
+                    }
+                    else {
+                        filesRead += "\",\"Status\": \"NA\"};";
+
+                    }
 
 
                 }
@@ -181,14 +203,15 @@ public class WatchDir {
         }
     }
 
-    void unzip(final String zipFilePath, final String unzipLocation) throws IOException {
+    String unzip(final String zipFilePath, final String unzipLocation) throws IOException {
 
 
 
         if (!(zipIsValid(new File(zipFilePath)))) {
-            System.out.format(zipFilePath + " is a bad zip file");
+            //System.out.format(zipFilePath + " is a bad zip file \n");
+            log.info("ENTRY " + zipFilePath + " is a bad zip file \n");
 
-            return;
+            return "KO";
         }
 
         if (!(Files.exists(Paths.get(unzipLocation)))) {
@@ -207,9 +230,12 @@ public class WatchDir {
                 }
 
                 zipInputStream.closeEntry();
+
+                log.info("ENTRY File " + entry.getName() + " unzipped.");
                 entry = zipInputStream.getNextEntry();
             }
         }
+        return "OK";
     }
 
     void unzipFiles(final ZipInputStream zipInputStream, final Path unzipFilePath) throws IOException {
@@ -220,6 +246,7 @@ public class WatchDir {
             while ((read = zipInputStream.read(bytesIn)) != -1) {
                 bos.write(bytesIn, 0, read);
             }
+
         }
 
     }
@@ -245,6 +272,18 @@ public class WatchDir {
 
     }
 
+    public String getFilesRead() {
+        return filesRead;
+    }
+
+    public String retryFile(String filename) throws IOException {
+
+        return unzip(filename.toString(),unzipPath);
+
+
+
+    }
+
     /*
     //uses hadoop imports, better to check api if available
 
@@ -256,14 +295,6 @@ public class WatchDir {
         Path hdfsPath = new Path("/path/in/hdfs");
         fs.copyFromLocalFile(localPath, hdfsPath);
 
-    }
-    */
-
-    /*
-
-     static void usage() {
-        System.err.println("usage: java WatchDir [-r] dir");
-        System.exit(-1);
     }
 
     public static void main(String[] args) throws IOException {
