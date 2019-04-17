@@ -1,0 +1,23 @@
+swagger:
+  enabled: true
+  info:
+    title: stratio- Microservice API
+    description: stratio- Microservice API Description
+    version: v1
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    org.hibernate: WARN
+    org.apache: WARN
+    org.eclipse: WARN
+    com.netflix: INFO
+
+filespath: /default_in/
+outpath: /default_out/
+
+ftpHost: ftps.anjana.local
+ftpUser: motortown_watcher
+ftpPass: Q_7C<p2wGnh4_e{D
+ftpPath: /anjana

@@ -13,3 +13,12 @@ logging:
     org.apache: WARN
     org.eclipse: WARN
     com.netflix: INFO
+
+filespath: /home/apaniagua/Documentos/watched
+outpath: /home/apaniagua/Documentos/watched/unzipped
+
+ftpHost: ftps.anjana.local
+ftpUser: motortown_watcher
+ftpPass: Q_7C<p2wGnh4_e{D
+ftpPath: /anjana
+

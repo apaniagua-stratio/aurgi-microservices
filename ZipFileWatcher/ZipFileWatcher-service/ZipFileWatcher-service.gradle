@@ -46,6 +46,8 @@ dependencies {
   compile "org.springframework.boot:spring-boot-starter-web"
   compile "org.springframework.boot:spring-boot-starter-actuator"
 
+  compile 'commons-net:commons-net:3.3'
+
   compile project(":ZipFileWatcher-api")
 
   compile "org.mapstruct:mapstruct-jdk8:${mapstructVersion}"
